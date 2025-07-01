@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
-from model.clip_model import ImgEncoder
+from model.clip_model import AttentionLayer, ImgEncoder
 
 
 def test_img_encoder():
@@ -15,6 +15,17 @@ def test_img_encoder():
     patch_size = 16
     out = encoder(x)
     assert out.shape == (B, H // patch_size * W // patch_size, patch_size**2 * 3)
+
+
+def test_attention_layer():
+    embed_size = 64
+    n_heads = 4
+    layer = AttentionLayer(embed_size=64, embed_size_h=embed_size // n_heads, dropout=0.1)
+    B, T, C = 2, 32, embed_size
+
+    x = torch.randn(B, T, C)
+    out = layer(x)
+    assert out.shape == (B, T, embed_size // n_heads)
 
 
 if __name__ == "__main__":

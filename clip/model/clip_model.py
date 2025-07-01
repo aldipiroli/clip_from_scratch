@@ -1,6 +1,44 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision.models import vit_b_16
+
+
+class AttentionLayer(nn.Module):
+    def __init__(self, embed_size, embed_size_h, dropout):
+        super().__init__()
+        self.embed_size = embed_size
+        self.embed_size_h = embed_size_h
+
+        self.Q = nn.Linear(embed_size, embed_size_h)
+        self.K = nn.Linear(embed_size, embed_size_h)
+        self.V = nn.Linear(embed_size, embed_size_h)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        B, T, C = x.shape
+        k = self.K(x)  # (B, T, C)
+        q = self.Q(x)
+        v = self.V(x)
+
+        qk = q @ k.transpose(2, 1) * self.embed_size_h**-0.5
+        tril = torch.tril(torch.ones(T, T))
+        qk = qk * tril
+        qk = qk.masked_fill(qk == 0, float("-inf"))
+        qk_smax = F.softmax(qk, -1)
+        assert (qk_smax == qk_smax).all()  # nan sanity check
+        qk = self.dropout(qk)
+        out = qk_smax @ v
+        return out
+
+
+class TransformerLayer(nn.Module):
+    def __init__(self, embed_size, n_heads, dropout):
+        super().__init__()
+        assert embed_size % n_heads == 0
+
+    def forward(self, x):
+        return x
 
 
 class TextEncoder(nn.Module):
@@ -9,8 +47,14 @@ class TextEncoder(nn.Module):
         self.context_len = context_len
         self.embed_size = embed_size
         self.vocab_size = vocab_size
+        self.text_embeddings = nn.Embedding(vocab_size, embed_size)
+        self.pos_embeddings = nn.Embedding(context_len, embed_size)
 
     def forward(self, x):
+        x_embed = self.text_embeddings(x)
+        x_pos_embed = self.pos_embeddings(x)
+        x = x_embed + x_pos_embed
+
         return x
 
 
@@ -51,6 +95,7 @@ class CLIPModel(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.img_encoder = ImgEncoder(config["img_encoder"]["pretrained"])
 
     def forward(self, x):
         return x

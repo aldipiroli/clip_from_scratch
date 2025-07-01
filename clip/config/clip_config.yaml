@@ -1,7 +1,8 @@
 ARTIFACTS_DIR: "../artifacts"
 MODEL:
-  model_name: ""
   img_size: [224, 224, 3]
+  img_encoder:
+    pretrained: True
 DATA:
   dataset: "Flickr8kDataset"
   batch_size: 2
