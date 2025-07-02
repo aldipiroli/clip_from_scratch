@@ -37,8 +37,8 @@ class Trainer(TrainerBase):
             text = text.to(self.device)
             eos_id = eos_id.to(self.device)
 
-            preds = self.model(img, text, eos_id)
-            loss = self.loss_fn()
+            logits_img2text, logits_text2img = self.model(img, text, eos_id)
+            loss = self.loss_fn(logits_img2text, logits_text2img)
             train_loss.append(loss)
             self.write_float_to_tb(loss, "train/loss", self.total_iters)
 
@@ -63,12 +63,3 @@ class Trainer(TrainerBase):
         eval_loss = torch.tensor(eval_loss).mean()
         self.logger.info(f"Epoch {self.epoch}/{self.num_epochs}: val loss {torch.tensor(eval_loss)}")
         self.write_float_to_tb(eval_loss, "val/loss", self.epoch)
-
-
-###########################################
-import debugpy
-
-debugpy.listen(("localhost", 6001))
-print("Waiting for debugger attach...")
-debugpy.wait_for_client()
-###########################################

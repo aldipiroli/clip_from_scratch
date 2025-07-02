@@ -156,5 +156,6 @@ class CLIPModel(nn.Module):
         img_enc_common = self.ln1(self.project_img_enc(img_enc))  # (B, e_img) -> (B, e_comm)
         text_enc_common = self.ln2(self.project_text_enc(text_enc))  # (B, e_text) -> (B, e_comm)
 
-        logits = img_enc_common @ text_enc_common.T * torch.exp(self.t)  # (B, B)
-        return logits
+        logits_img2text = img_enc_common @ text_enc_common.T * torch.exp(self.t)  # (B, B)
+        logits_text2img = text_enc_common @ img_enc_common.T * torch.exp(self.t)  # (B, B)
+        return logits_img2text, logits_text2img

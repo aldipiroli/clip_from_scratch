@@ -12,7 +12,7 @@ MODEL:
   common_embed_size: 256
 DATA:
   dataset: "Flickr8kDataset"
-  batch_size: 2
+  batch_size: 4
   root_dir: "../data"
 OPTIM:
   loss: ""
