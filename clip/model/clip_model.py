@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from model.tokenizer import Tokenizer
 from torchvision.models import vit_b_16
 
 
@@ -22,7 +23,7 @@ class AttentionLayer(nn.Module):
         v = self.V(x)
 
         qk = q @ k.transpose(2, 1) * self.embed_size_h**-0.5
-        tril = torch.tril(torch.ones(T, T))
+        tril = torch.tril(torch.ones(T, T)).to(x.device)
         qk = qk * tril
         qk = qk.masked_fill(qk == 0, float("-inf"))
         qk_smax = F.softmax(qk, -1)
@@ -73,7 +74,7 @@ class TextEncoder(nn.Module):
         self.ln = nn.LayerNorm(embed_size)
         self.project = nn.Linear(embed_size, vocab_size)
 
-    def forward(self, x):
+    def forward(self, x, eos_index=None):
         B, T = x.shape
         x_embed = self.text_embeddings(x)
         x_pos_embed = self.pos_embeddings(torch.arange(T, device=x.device))
@@ -82,7 +83,10 @@ class TextEncoder(nn.Module):
         for layer in self.layers:
             x = layer(x)
         x = self.ln(x)
-        x = self.project(x)
+        x = self.project(x)  # N, T, vocab_size
+
+        if eos_index:
+            x = x[:, eos_index, :]  # N, vocab_size
         return x
 
 
@@ -112,10 +116,11 @@ class ViTb16FeatureExtractor(torch.nn.Module):
 class ImgEncoder(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
-        self.encoder = ViTb16FeatureExtractor(pretrained)
+        self.encoder = ViTb16FeatureExtractor(pretrained, use_cls_token=True)
 
     def forward(self, x):
         out = self.encoder(x)
+        out = out[:, 0, :]  # N, embed_size
         return out
 
 
@@ -123,7 +128,20 @@ class CLIPModel(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.img_encoder = ImgEncoder(config["img_encoder"]["pretrained"])
+        cfg_img_enc = config["MODEL"]["img_encoder"]
+        cfg_text_enc = config["MODEL"]["text_encoder"]
 
-    def forward(self, x):
-        return x
+        self.img_encoder = ImgEncoder(cfg_img_enc["pretrained"])
+        self.text_encoder = TextEncoder(
+            context_len=cfg_text_enc["context_len"],
+            embed_size=cfg_text_enc["embed_size"],
+            n_heads=cfg_text_enc["n_heads"],
+            n_layers=cfg_text_enc["n_layers"],
+            dropout=cfg_text_enc["dropout"],
+            vocab_size=Tokenizer().get_vocab_size(),
+        )
+
+    def forward(self, img, text):
+        img_enc = self.img_encoder(img)
+        text_enc = self.text_encoder(text)
+        return img

@@ -3,6 +3,12 @@ MODEL:
   img_size: [224, 224, 3]
   img_encoder:
     pretrained: True
+  text_encoder:
+    context_len: 32
+    embed_size: 64
+    n_heads: 4
+    n_layers: 4
+    dropout: 0.1
 DATA:
   dataset: "Flickr8kDataset"
   batch_size: 2

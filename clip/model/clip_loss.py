@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class CLIPLoss(nn.Module):
     def __init__(self):
-        super(self).__init__()
+        super().__init__()
 
     def forward(self, pred, gt):
         criterion = nn.CrossEntropyLoss()

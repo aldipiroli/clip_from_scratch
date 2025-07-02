@@ -2,6 +2,7 @@ import os
 import random
 from pathlib import Path
 
+import torch
 from dataset.utils import download_flickr8k_dataset
 from model.tokenizer import Tokenizer
 from PIL import Image
@@ -30,7 +31,7 @@ class Flickr8kDataset(Dataset):
         else:
             self.image_files = self.image_files[n_train:]
         self.tokenizer = Tokenizer()
-        self.context_len = cfg["MODEL"]["context_len"]
+        self.context_len = cfg["MODEL"]["text_encoder"]["context_len"]
 
     def __len__(self):
         return len(self.image_files)
@@ -41,7 +42,10 @@ class Flickr8kDataset(Dataset):
         image = Image.open(img_path).convert("RGB")
         image = self.transform(image)
         caption = random.choice(self.caption_dict[img_name])
-        return image, caption
+        caption_tokenized = self.tokenize_text(caption)
+        caption_tokenized = self.adjust_token_len(caption_tokenized)
+        caption_tokenized = torch.tensor(caption_tokenized)
+        return image, caption_tokenized
 
     def load_samples(self):
         self.caption_dict = {}
@@ -57,14 +61,16 @@ class Flickr8kDataset(Dataset):
         return tokens
 
     def adjust_token_len(self, tokens):
-        if len(tokens) + 2 >= self.context_len:
-            tokens = tokens[: self.context_len - 2]
-            tokens.insert(0, self.tokenizer.sos_token_id)
-            tokens.insert(-1, self.tokenizer.eos_token_id)
-        elif len(tokens) + 2 < self.context_len:
-            tokens.insert(0, self.tokenizer.sos_token_id)
-            tokens.insert(-1, self.tokenizer.eos_token_id)
+        max_tokens = self.context_len - 2
+        tokens = tokens[:max_tokens]
+
+        tokens = [self.tokenizer.sos_token_id] + tokens + [self.tokenizer.eos_token_id]
+
+        if len(tokens) < self.context_len:
             tokens += [0] * (self.context_len - len(tokens))
-        else:
-            raise ValueError
+
         return tokens
+
+    def find_eos_token(self, tokens):
+        indices = (tokens == self.tokenizer.eos_token_id).nonzero(as_tuple=True)[0]
+        return indices[0]

@@ -1,6 +1,10 @@
 config = {
     "ARTIFACTS_DIR": "../artifacts",
-    "MODEL": {"model_name": "", "img_size": [224, 224, 3], "context_len": 32},
+    "MODEL": {
+        "img_size": [224, 224, 3],
+        "img_encoder": {"pretrained": True},
+        "text_encoder": {"context_len": 32, "embed_size": 64, "n_heads": 4, "n_layers": 4, "dropout": 0.1},
+    },
     "DATA": {"dataset": "Flickr8kDataset", "batch_size": 2, "root_dir": "../data"},
     "OPTIM": {
         "loss": "",

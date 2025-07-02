@@ -15,7 +15,7 @@ def test_img_encoder():
     x = torch.randn(B, C, H, W)
     patch_size = 16
     out = encoder(x)
-    assert out.shape == (B, H // patch_size * W // patch_size, patch_size**2 * 3)
+    assert out.shape == (B, patch_size**2 * 3)
 
 
 def test_attention_layer():

@@ -30,7 +30,7 @@ class Trainer(TrainerBase):
         self.model.train()
         self.reshuffle_dataloader()
         train_loss = []
-        pbar = tqdm(enumerate(self.train_loader), total=self.config["OPTIM"]["num_iterations_train"])
+        pbar = tqdm(enumerate(self.train_loader), total=self.config["OPTIM"]["num_epochs"])
         for n_iter, (img, text) in pbar:
             self.optimizer.zero_grad()
             img = img.to(self.device)
