@@ -10,3 +10,4 @@ tensorboard
 requests
 h5py
 opencv-python
+tiktoken

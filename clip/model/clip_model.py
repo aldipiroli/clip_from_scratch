@@ -1,3 +1,4 @@
+import tiktoken
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -36,25 +37,68 @@ class TransformerLayer(nn.Module):
     def __init__(self, embed_size, n_heads, dropout):
         super().__init__()
         assert embed_size % n_heads == 0
+        self.embed_size = embed_size
+        self.mha = nn.ModuleList(
+            [
+                AttentionLayer(embed_size=embed_size, embed_size_h=embed_size // n_heads, dropout=dropout)
+                for _ in range(n_heads)
+            ]
+        )
+        self.project = nn.Sequential(
+            nn.Linear(embed_size, 4 * embed_size), nn.ReLU(), nn.Linear(4 * embed_size, embed_size), nn.Dropout(dropout)
+        )
+
+        self.ln1 = nn.LayerNorm(embed_size)
+        self.ln2 = nn.LayerNorm(embed_size)
 
     def forward(self, x):
+        x_mha = torch.cat([h(self.ln1(x)) for h in self.mha], -1)
+        x = x_mha + x
+
+        x_project = self.project(self.ln2(x))
+        x = x_project + x
         return x
 
 
+class Tokenizer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.enc = tiktoken.get_encoding("o200k_base")
+
+    def encode(self, x):
+        return self.enc.encode(x)
+
+    def decode(self, x):
+        return self.enc.decode(x)
+
+    def get_vocab_size(self):
+        return self.enc.n_vocab
+
+
 class TextEncoder(nn.Module):
-    def __init__(self, context_len, embed_size, vocab_size):
+    def __init__(self, context_len, embed_size, vocab_size, n_heads, n_layers, dropout):
         super().__init__()
         self.context_len = context_len
         self.embed_size = embed_size
         self.vocab_size = vocab_size
         self.text_embeddings = nn.Embedding(vocab_size, embed_size)
         self.pos_embeddings = nn.Embedding(context_len, embed_size)
+        self.layers = nn.ModuleList(
+            [TransformerLayer(embed_size=embed_size, n_heads=n_heads, dropout=dropout) for _ in range(n_layers)]
+        )
+        self.ln = nn.LayerNorm(embed_size)
+        self.project = nn.Linear(embed_size, vocab_size)
 
     def forward(self, x):
+        B, T = x.shape
         x_embed = self.text_embeddings(x)
-        x_pos_embed = self.pos_embeddings(x)
+        x_pos_embed = self.pos_embeddings(torch.arange(T, device=x.device))
         x = x_embed + x_pos_embed
 
+        for layer in self.layers:
+            x = layer(x)
+        x = self.ln(x)
+        x = self.project(x)
         return x
 
 
