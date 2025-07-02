@@ -85,8 +85,9 @@ class TextEncoder(nn.Module):
         x = self.ln(x)
         x = self.project(x)  # N, T, vocab_size
 
-        if eos_index:
-            x = x[:, eos_index, :]  # N, vocab_size
+        if eos_index is not None:
+            eos_index = eos_index.reshape(B, 1)
+            x = x[torch.arange(B).unsqueeze(1), eos_index, :].squeeze(1)  # N, vocab_size
         return x
 
 
@@ -117,6 +118,7 @@ class ImgEncoder(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
         self.encoder = ViTb16FeatureExtractor(pretrained, use_cls_token=True)
+        self.patch_size = 16
 
     def forward(self, x):
         out = self.encoder(x)
@@ -128,8 +130,9 @@ class CLIPModel(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        cfg_img_enc = config["MODEL"]["img_encoder"]
-        cfg_text_enc = config["MODEL"]["text_encoder"]
+        cfg = config["MODEL"]
+        cfg_img_enc = cfg["img_encoder"]
+        cfg_text_enc = cfg["text_encoder"]
 
         self.img_encoder = ImgEncoder(cfg_img_enc["pretrained"])
         self.text_encoder = TextEncoder(
@@ -140,8 +143,18 @@ class CLIPModel(nn.Module):
             dropout=cfg_text_enc["dropout"],
             vocab_size=Tokenizer().get_vocab_size(),
         )
+        self.project_img_enc = nn.Linear(self.img_encoder.patch_size**2 * 3, cfg["common_embed_size"])
+        self.project_text_enc = nn.Linear(Tokenizer().get_vocab_size(), cfg["common_embed_size"])
+        self.ln1 = nn.LayerNorm(cfg["common_embed_size"])
+        self.ln2 = nn.LayerNorm(cfg["common_embed_size"])
+        self.t = torch.nn.Parameter(torch.randn(1))
 
-    def forward(self, img, text):
-        img_enc = self.img_encoder(img)
-        text_enc = self.text_encoder(text)
-        return img
+    def forward(self, img, text, eos_id):
+        img_enc = self.img_encoder(img)  # (B, C, H, W) -> (B, e_img)
+        text_enc = self.text_encoder(text, eos_id)  # (B, T) -> (B, e_text)
+
+        img_enc_common = self.ln1(self.project_img_enc(img_enc))  # (B, e_img) -> (B, e_comm)
+        text_enc_common = self.ln2(self.project_text_enc(text_enc))  # (B, e_text) -> (B, e_comm)
+
+        logits = img_enc_common @ text_enc_common.T * torch.exp(self.t)  # (B, B)
+        return logits

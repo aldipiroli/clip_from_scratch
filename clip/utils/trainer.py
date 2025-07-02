@@ -31,12 +31,13 @@ class Trainer(TrainerBase):
         self.reshuffle_dataloader()
         train_loss = []
         pbar = tqdm(enumerate(self.train_loader), total=self.config["OPTIM"]["num_epochs"])
-        for n_iter, (img, text) in pbar:
+        for n_iter, (img, text, eos_id) in pbar:
             self.optimizer.zero_grad()
             img = img.to(self.device)
             text = text.to(self.device)
+            eos_id = eos_id.to(self.device)
 
-            preds = self.model(img, text)
+            preds = self.model(img, text, eos_id)
             loss = self.loss_fn()
             train_loss.append(loss)
             self.write_float_to_tb(loss, "train/loss", self.total_iters)
@@ -62,3 +63,12 @@ class Trainer(TrainerBase):
         eval_loss = torch.tensor(eval_loss).mean()
         self.logger.info(f"Epoch {self.epoch}/{self.num_epochs}: val loss {torch.tensor(eval_loss)}")
         self.write_float_to_tb(eval_loss, "val/loss", self.epoch)
+
+
+###########################################
+import debugpy
+
+debugpy.listen(("localhost", 6001))
+print("Waiting for debugger attach...")
+debugpy.wait_for_client()
+###########################################

@@ -45,7 +45,8 @@ class Flickr8kDataset(Dataset):
         caption_tokenized = self.tokenize_text(caption)
         caption_tokenized = self.adjust_token_len(caption_tokenized)
         caption_tokenized = torch.tensor(caption_tokenized)
-        return image, caption_tokenized
+        eos_id = self.find_eos_token(caption_tokenized)
+        return image, caption_tokenized, eos_id
 
     def load_samples(self):
         self.caption_dict = {}
