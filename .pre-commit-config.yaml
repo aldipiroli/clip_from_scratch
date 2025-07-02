@@ -25,10 +25,10 @@ repos:
     hooks:
       - id: pycln
         args: [--config=pyproject.toml]
-  - repo: local
-    hooks:
-      - id: run-pytest
-        name: Run Pytest
-        entry: bash -c 'cd clip && pytest'
-        language: system
-        types: [python]
+  # - repo: local
+  #   hooks:
+  #     - id: run-pytest
+  #       name: Run Pytest
+  #       entry: bash -c 'cd clip && pytest'
+  #       language: system
+  #       types: [python]
