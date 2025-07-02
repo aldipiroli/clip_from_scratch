@@ -5,7 +5,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import torch
-from model.clip_model import AttentionLayer, ImgEncoder, TextEncoder, Tokenizer, TransformerLayer
+from model.clip_model import AttentionLayer, ImgEncoder, TextEncoder, TransformerLayer
+from model.tokenizer import Tokenizer
 
 
 def test_img_encoder():

@@ -1,6 +1,6 @@
 config = {
     "ARTIFACTS_DIR": "../artifacts",
-    "MODEL": {"model_name": "", "img_size": [224, 224, 3]},
+    "MODEL": {"model_name": "", "img_size": [224, 224, 3], "context_len": 32},
     "DATA": {"dataset": "Flickr8kDataset", "batch_size": 2, "root_dir": "../data"},
     "OPTIM": {
         "loss": "",

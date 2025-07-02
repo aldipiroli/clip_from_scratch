@@ -1,4 +1,3 @@
-import tiktoken
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -58,21 +57,6 @@ class TransformerLayer(nn.Module):
         x_project = self.project(self.ln2(x))
         x = x_project + x
         return x
-
-
-class Tokenizer(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.enc = tiktoken.get_encoding("o200k_base")
-
-    def encode(self, x):
-        return self.enc.encode(x)
-
-    def decode(self, x):
-        return self.enc.decode(x)
-
-    def get_vocab_size(self):
-        return self.enc.n_vocab
 
 
 class TextEncoder(nn.Module):
