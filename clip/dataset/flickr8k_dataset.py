@@ -54,7 +54,11 @@ class Flickr8kDataset(Dataset):
             for line in f:
                 img_tag, caption = line.strip().split("\t")
                 img_name = img_tag.split("#")[0]
-                self.caption_dict.setdefault(img_name, []).append(caption)
+                img_path = os.path.join(self.images_dir, img_name)
+                if os.path.isfile(img_path):
+                    self.caption_dict.setdefault(img_name, []).append(caption)
+                else:
+                    print(f"Skipping {img_path}")
         self.image_files = list(self.caption_dict.keys())
 
     def tokenize_text(self, text):
