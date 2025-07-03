@@ -82,8 +82,7 @@ class TextEncoder(nn.Module):
 
         for layer in self.layers:
             x = layer(x)
-        x = self.ln(x)
-        x = self.project(x)  # N, T, vocab_size
+        x = self.ln(x)  # N, T, embed_size
 
         if eos_index is not None:
             eos_index = eos_index.reshape(B, 1)
@@ -92,32 +91,36 @@ class TextEncoder(nn.Module):
 
 
 class ViTb16FeatureExtractor(torch.nn.Module):
-    def __init__(self, pretrained=True, use_cls_token=False):
+    def __init__(self, pretrained=True, use_cls_token=False, frozen_backbone=True):
         super().__init__()
         # https://docs.pytorch.org/vision/main/_modules/torchvision/models/vision_transformer.html#vit_b_16
         # Note: patch_size: 16, img_size: (224,224)
         self.vit = vit_b_16(weights="DEFAULT" if pretrained else None)
         self.use_cls_token = use_cls_token
+        self.frozen_backbone = frozen_backbone
+        if frozen_backbone:
+            self.vit.eval()
 
     def forward(self, x):
-        x = self.vit._process_input(x)
-        n = x.shape[0]
-        batch_class_token = self.vit.class_token.expand(n, -1, -1)
-        x = torch.cat([batch_class_token, x], dim=1)
+        with torch.no_grad() if self.frozen_backbone else torch.enable_grad():
+            x = self.vit._process_input(x)
+            n = x.shape[0]
+            batch_class_token = self.vit.class_token.expand(n, -1, -1)
+            x = torch.cat([batch_class_token, x], dim=1)
 
-        x = x + self.vit.encoder.pos_embedding
-        x = self.vit.encoder.dropout(x)
-        for layer in self.vit.encoder.layers:
-            x = layer(x)
-        if not self.use_cls_token:
-            x = x[:, 1:, :]
-        return x  # (B, C, H, W) ->  (B, img_size//patch_size, patch_size**2*3) = (B, 197, 768)
+            x = x + self.vit.encoder.pos_embedding
+            x = self.vit.encoder.dropout(x)
+            for layer in self.vit.encoder.layers:
+                x = layer(x)
+            if not self.use_cls_token:
+                x = x[:, 1:, :]
+            return x  # (B, C, H, W) ->  (B, img_size//patch_size, patch_size**2*3) = (B, 197, 768)
 
 
 class ImgEncoder(nn.Module):
-    def __init__(self, pretrained=True):
+    def __init__(self, pretrained=True, frozen_backbone=True):
         super().__init__()
-        self.encoder = ViTb16FeatureExtractor(pretrained, use_cls_token=True)
+        self.encoder = ViTb16FeatureExtractor(pretrained, use_cls_token=True, frozen_backbone=frozen_backbone)
         self.patch_size = 16
 
     def forward(self, x):
@@ -134,7 +137,9 @@ class CLIPModel(nn.Module):
         cfg_img_enc = cfg["img_encoder"]
         cfg_text_enc = cfg["text_encoder"]
 
-        self.img_encoder = ImgEncoder(cfg_img_enc["pretrained"])
+        self.img_encoder = ImgEncoder(
+            pretrained=cfg_img_enc["pretrained"], frozen_backbone=cfg_img_enc["frozen_backbone"]
+        )
         self.text_encoder = TextEncoder(
             context_len=cfg_text_enc["context_len"],
             embed_size=cfg_text_enc["embed_size"],
@@ -144,10 +149,10 @@ class CLIPModel(nn.Module):
             vocab_size=Tokenizer().get_vocab_size(),
         )
         self.project_img_enc = nn.Linear(self.img_encoder.patch_size**2 * 3, cfg["common_embed_size"])
-        self.project_text_enc = nn.Linear(Tokenizer().get_vocab_size(), cfg["common_embed_size"])
+        self.project_text_enc = nn.Linear(cfg_text_enc["embed_size"], cfg["common_embed_size"])
         self.ln1 = nn.LayerNorm(cfg["common_embed_size"])
         self.ln2 = nn.LayerNorm(cfg["common_embed_size"])
-        self.t = torch.nn.Parameter(torch.randn(1))
+        self.t = nn.Parameter(torch.tensor([torch.log(torch.tensor(1 / 0.07))], dtype=torch.float32))
 
     def forward(self, img, text, eos_id):
         B, T = text.shape
@@ -158,11 +163,8 @@ class CLIPModel(nn.Module):
         text_enc_common = self.ln2(self.project_text_enc(text_enc))  # (B, e_text) -> (B, e_comm)
         labels = torch.arange(B).to(img.device)
 
-        # shuffle
-        indices = torch.randperm(B)
-        img_enc_common = img_enc_common[indices]
-        text_enc_common = text_enc_common[indices]
-        labels = labels[indices]
+        img_enc_common = F.normalize(img_enc_common, dim=-1)
+        text_enc_common = F.normalize(text_enc_common, dim=-1)
 
         logits_img2text = img_enc_common @ text_enc_common.T * torch.exp(self.t)  # (B, B)
         logits_text2img = text_enc_common @ img_enc_common.T * torch.exp(self.t)  # (B, B)

@@ -56,8 +56,8 @@ def test_text_encoder():
     tokens = tokens[:, :context_len]
 
     text_encoder = TextEncoder(context_len, embed_size, vocab_size, n_heads, n_layers, dropout)
-    out = text_encoder(tokens)
-    assert out.shape == (B, context_len, vocab_size)
+    out = text_encoder(tokens, eos_index=torch.tensor([-1, -1]))
+    assert out.shape == (B, embed_size)
 
 
 if __name__ == "__main__":

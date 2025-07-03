@@ -175,3 +175,16 @@ class TrainerBase(ABC):
     def gradient_clip(self):
         if self.use_gradient_clip:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
+
+    def accumulate_gradients(self):
+        if not self.config["OPTIM"]["accumulate_gradient"]:
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+        elif (
+            self.total_iters % self.config["OPTIM"]["accumulate_gradient_iters"] == 0
+            or self.total_iters % len(self.train_loader) == 0
+        ):
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+        else:
+            return

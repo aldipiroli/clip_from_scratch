@@ -3,23 +3,27 @@ MODEL:
   img_size: [224, 224, 3]
   img_encoder:
     pretrained: True
+    frozen_backbone: True
   text_encoder:
     context_len: 32
-    embed_size: 64
+    embed_size: 128
     n_heads: 4
-    n_layers: 4
+    n_layers: 8
     dropout: 0.1
   common_embed_size: 256
 DATA:
   dataset: "Flickr8kDataset"
-  batch_size: 4
+  batch_size: 16
   root_dir: "../data"
 OPTIM:
   loss: ""
   optimizer: "AdamW"
   lr: 0.0001
-  num_epochs: 100
+  accumulate_gradient: True
+  accumulate_gradient_iters: 8
+  num_epochs: 10000
   num_iterations_val: 50
+  save_ckpt_every: 10
   eval_every: 5
   gradient_clip: true
   scheduler: ""

@@ -1,5 +1,4 @@
 import os
-import random
 from pathlib import Path
 
 import torch
@@ -20,8 +19,13 @@ class Flickr8kDataset(Dataset):
         self.captions_file = os.path.join(self.root_dir, "captions", "Flickr8k.token.txt")
         self.transform = transforms.Compose(
             [
-                transforms.Resize((224, 224)),
+                transforms.Resize(232, interpolation=Image.BICUBIC),
+                transforms.CenterCrop(224),
                 transforms.ToTensor(),
+                transforms.Normalize(  # ImageNet params
+                    mean=[0.485, 0.456, 0.406],
+                    std=[0.229, 0.224, 0.225],
+                ),
             ]
         )
         self.load_samples()
@@ -41,7 +45,8 @@ class Flickr8kDataset(Dataset):
         img_path = os.path.join(self.images_dir, img_name)
         image = Image.open(img_path).convert("RGB")
         image = self.transform(image)
-        caption = random.choice(self.caption_dict[img_name])
+        # caption = random.choice(self.caption_dict[img_name])
+        caption = self.caption_dict[img_name][0]
         caption_tokenized = self.tokenize_text(caption)
         caption_tokenized = self.adjust_token_len(caption_tokenized)
         caption_tokenized = torch.tensor(caption_tokenized)
