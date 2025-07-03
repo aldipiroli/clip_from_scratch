@@ -150,12 +150,21 @@ class CLIPModel(nn.Module):
         self.t = torch.nn.Parameter(torch.randn(1))
 
     def forward(self, img, text, eos_id):
+        B, T = text.shape
         img_enc = self.img_encoder(img)  # (B, C, H, W) -> (B, e_img)
         text_enc = self.text_encoder(text, eos_id)  # (B, T) -> (B, e_text)
 
         img_enc_common = self.ln1(self.project_img_enc(img_enc))  # (B, e_img) -> (B, e_comm)
         text_enc_common = self.ln2(self.project_text_enc(text_enc))  # (B, e_text) -> (B, e_comm)
+        labels = torch.arange(B).to(img.device)
+
+        # shuffle
+        indices = torch.randperm(B)
+        img_enc_common = img_enc_common[indices]
+        text_enc_common = text_enc_common[indices]
+        labels = labels[indices]
 
         logits_img2text = img_enc_common @ text_enc_common.T * torch.exp(self.t)  # (B, B)
         logits_text2img = text_enc_common @ img_enc_common.T * torch.exp(self.t)  # (B, B)
-        return logits_img2text, logits_text2img
+
+        return logits_img2text, logits_text2img, labels

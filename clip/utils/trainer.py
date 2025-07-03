@@ -18,27 +18,28 @@ class Trainer(TrainerBase):
     def train(self):
         self.logger.info("Started training..")
         start_epoch = self.epoch
-        self.evaluate_model()
         for epoch in range(start_epoch, self.config["OPTIM"]["num_epochs"]):
             self.epoch = epoch
             self.train_one_epoch()
             self.evaluate_model()
             self.save_checkpoint()
-            if epoch % self.eval_every == 0:
-                self.generate_output()
 
     def train_one_epoch(self):
         self.model.train()
+        self.reshuffle_dataloader()
+
         pbar = tqdm(enumerate(self.train_loader), total=len(self.train_loader))
         for n_iter, (img, text, eos_id) in pbar:
+            # if n_iter > 50:
+            #     break
             self.optimizer.zero_grad()
             img = img.to(self.device)
             text = text.to(self.device)
             eos_id = eos_id.to(self.device)
 
-            logits_img2text, logits_text2img = self.model(img, text, eos_id)
-            loss = self.loss_fn(logits_img2text, logits_text2img)
-            self.write_float_to_tb(loss, "train/loss", self.total_iters)
+            logits_img2text, logits_text2img, labels = self.model(img, text, eos_id)
+            loss, loss_dict = self.loss_fn(logits_img2text, logits_text2img, labels)
+            self.write_dict_to_tb(loss_dict, self.total_iters, prefix="train")
 
             loss.backward()
             self.gradient_clip()
@@ -55,13 +56,12 @@ class Trainer(TrainerBase):
         for n_iter, (img, text, eos_id) in pbar:
             if n_iter > self.config["OPTIM"]["num_iterations_val"]:
                 break
-            self.optimizer.zero_grad()
             img = img.to(self.device)
             text = text.to(self.device)
             eos_id = eos_id.to(self.device)
 
-            logits_img2text, logits_text2img = self.model(img, text, eos_id)
-            loss = self.loss_fn(logits_img2text, logits_text2img)
+            logits_img2text, logits_text2img, labels = self.model(img, text, eos_id)
+            loss, loss_dict = self.loss_fn(logits_img2text, logits_text2img, labels)
             eval_loss.append(loss)
             pbar.set_postfix({"epoch": f"{self.epoch}/{self.config['OPTIM']['num_epochs']}", "eval_loss": loss.item()})
 

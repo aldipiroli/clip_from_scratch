@@ -9,7 +9,7 @@ from utils.trainer import Trainer
 
 def train(args):
     config = load_config(args.config)
-    config = make_artifacts_dirs(config, log_datetime=False)
+    config = make_artifacts_dirs(config, log_datetime=True)
     logger = get_logger(config["LOG_DIR"])
     trainer = Trainer(config, logger)
 

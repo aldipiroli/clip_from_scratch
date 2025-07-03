@@ -34,6 +34,12 @@ class TrainerBase(ABC):
             value = value.item()
         self.writer.add_scalar(name, value, step)
 
+    def write_dict_to_tb(self, dict_values, step, prefix=""):
+        for k, value in dict_values.items():
+            if isinstance(value, torch.Tensor):
+                value = value.item()
+            self.writer.add_scalar(f"{prefix}/{k}", value, step)
+
     def write_text_to_tb(self, text, name, step):
         self.writer.add_text(name, text, step)
 
@@ -96,7 +102,7 @@ class TrainerBase(ABC):
         )
         self.val_loader = DataLoader(
             self.val_dataset,
-            batch_size=1,
+            batch_size=data_config["batch_size"],
             shuffle=False,
         )
         self.logger.info(f"Train Dataset: {self.train_dataset}")
