@@ -169,4 +169,11 @@ class CLIPModel(nn.Module):
         logits_img2text = img_enc_common @ text_enc_common.T * torch.exp(self.t)  # (B, B)
         logits_text2img = text_enc_common @ img_enc_common.T * torch.exp(self.t)  # (B, B)
 
-        return logits_img2text, logits_text2img, labels
+        output_dict = {
+            "logits_img2text": logits_img2text,
+            "logits_text2img": logits_text2img,
+            "labels": labels,
+            "img_enc_common": img_enc_common,
+            "text_enc_common": text_enc_common,
+        }
+        return output_dict

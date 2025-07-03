@@ -21,8 +21,6 @@ class TrainerBase(ABC):
         self.ckpt_dir.mkdir(parents=True, exist_ok=True)
         self.device = get_device()
         self.logger.info(f"Using device: {self.device}")
-        self.artifacts_img_dir = Path(config["IMG_OUT_DIR"])
-        self.artifacts_img_dir.mkdir(parents=True, exist_ok=True)
         self.eval_every = config["OPTIM"]["eval_every"]
 
     def set_mlops(self):
@@ -90,7 +88,7 @@ class TrainerBase(ABC):
         self.epoch = checkpoint.get("epoch", 0)
         self.total_iters = checkpoint.get("total_iters", 0)
 
-    def set_dataset(self, train_dataset, val_dataset, data_config):
+    def set_dataset(self, train_dataset, val_dataset, data_config, val_set_batch_size=None):
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.data_config = data_config
@@ -102,7 +100,7 @@ class TrainerBase(ABC):
         )
         self.val_loader = DataLoader(
             self.val_dataset,
-            batch_size=data_config["batch_size"],
+            batch_size=val_set_batch_size if val_set_batch_size is not None else data_config["batch_size"],
             shuffle=False,
         )
         self.logger.info(f"Train Dataset: {self.train_dataset}")
