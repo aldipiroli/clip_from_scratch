@@ -88,7 +88,7 @@ class TrainerBase(ABC):
         self.epoch = checkpoint.get("epoch", 0)
         self.total_iters = checkpoint.get("total_iters", 0)
 
-    def set_dataset(self, train_dataset, val_dataset, data_config, val_set_batch_size=None):
+    def set_dataset(self, train_dataset, val_dataset, data_config, val_set_batch_size=None, shuffle_valset=False):
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.data_config = data_config
@@ -101,7 +101,7 @@ class TrainerBase(ABC):
         self.val_loader = DataLoader(
             self.val_dataset,
             batch_size=val_set_batch_size if val_set_batch_size is not None else data_config["batch_size"],
-            shuffle=False,
+            shuffle=shuffle_valset,
         )
         self.logger.info(f"Train Dataset: {self.train_dataset}")
         self.logger.info(f"Val Dataset: {self.val_dataset}")

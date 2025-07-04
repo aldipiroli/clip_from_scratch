@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils.misc import load_pickle, plot_images_with_values, save_pickle
+from utils.misc import load_pickle, plot_image_and_text, plot_images_with_values, save_pickle
 from utils.trainer_base import TrainerBase
 
 
@@ -163,3 +163,35 @@ class Trainer(TrainerBase):
         selected_imgs = [all_infos[i]["img_name"] for i in ind.tolist()]
         selected_cos_sim = [cos_sim[i] for i in ind.tolist()]
         plot_images_with_values(selected_imgs, selected_cos_sim, prompt=prompt, save_dir=self.config["IMG_OUT_DIR"])
+
+    def generate_zero_shot_text_queries(self):
+        possible_prompts = []
+        for curr_class in self.val_dataset.classes:
+            prompt = f"A photo of a {curr_class}"
+            possible_prompts.append(prompt)
+        return possible_prompts
+
+    def zero_shot_cls(self):
+        self.model.eval()
+        possible_prompts = self.generate_zero_shot_text_queries()
+        for img_id, (img_no_tr, img, _) in enumerate(self.val_loader):
+            if img_id > 100:
+                break
+            all_cos_sim = []
+            for n_iter, (prompt) in enumerate(possible_prompts):
+                img = img.to(self.device)
+                prompt_tok, eos_id = self.val_dataset.process_text(prompt)
+                prompt_tok = prompt_tok.unsqueeze(0).to(self.device)
+                eos_id = eos_id.unsqueeze(0).to(self.device)
+                output_dict = self.model(img, prompt_tok, eos_id)
+                cos_sim = self.get_cos_sim(output_dict["img_enc_common"], output_dict["text_enc_common"])
+                all_cos_sim.append(cos_sim.detach().cpu().numpy())
+
+            sorted_indices = sorted(range(len(all_cos_sim)), key=lambda i: all_cos_sim[i], reverse=True)
+            all_cos_sim = [all_cos_sim[i] for i in sorted_indices]
+            possible_prompts = [possible_prompts[i] for i in sorted_indices]
+            possible_classes = [self.val_dataset.classes[i] for i in sorted_indices]
+            plot_image_and_text(
+                img_no_tr[0], possible_classes, all_cos_sim, save_dir=self.config["IMG_OUT_DIR"], img_id=img_id
+            )
+            self.logger.info(f"Processed {img_id}/{len(self.val_loader)}")

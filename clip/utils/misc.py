@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import yaml
 from PIL import Image
@@ -93,4 +94,36 @@ def plot_images_with_values(image_paths, values, prompt, save_dir):
     fig.suptitle(f"Prompt: '{prompt}'", fontsize=14, y=1.02)
     os.makedirs(save_dir, exist_ok=True)
     plt.savefig(os.path.join(save_dir, "matches.png"), bbox_inches="tight", pad_inches=0.01, dpi=300)
+    plt.close(fig)
+
+
+def plot_image_and_text(img_tensor, prompts, cos_sim, save_dir, top_k=5, img_id=0, figsize=(10, 5)):
+    img = img_tensor.detach().cpu().numpy().transpose(1, 2, 0)
+    img = np.clip(img, 0, 1)
+    top_values = np.array(cos_sim[:top_k])
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.3)
+
+    ax1.imshow(img)
+    ax1.axis("off")
+
+    top_prompts = prompts[:top_k]
+    y_pos = np.arange(len(top_prompts))
+    ax2.barh(y_pos, top_values, align="center")
+    ax2.set_yticks(y_pos)
+    ax2.set_yticklabels(top_prompts)
+    ax2.invert_yaxis()
+    ax2.xaxis.set_visible(False)
+
+    for i, v in enumerate(top_values):
+        ax2.text(v + 0.001, i, f"{v:.4f}", va="center")
+
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["right"].set_visible(False)
+    ax2.spines["left"].set_visible(False)
+    ax2.spines["bottom"].set_visible(False)
+
+    img_path_save = os.path.join(save_dir, f"img_{str(img_id).zfill(3)}.png")
+    plt.savefig(img_path_save, bbox_inches="tight", pad_inches=0.01, dpi=300)
     plt.close(fig)
