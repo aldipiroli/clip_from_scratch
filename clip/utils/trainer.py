@@ -1,10 +1,11 @@
 import os
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils.misc import plot_images_with_values
+from utils.misc import load_pickle, plot_images_with_values, save_pickle
 from utils.trainer_base import TrainerBase
 
 
@@ -107,31 +108,58 @@ class Trainer(TrainerBase):
             sim = sim.mean()
         return sim
 
-    def query_data_from_prompt(self, prompt):
+    def compute_dataset_embeddings(self):
+        self.model.eval()
+        all_infos = []
+
+        pbar = tqdm(enumerate(self.val_loader), total=len(self.val_loader))
+        for n_iter, (img, img_name, caption, eos_id) in pbar:
+            img = img.to(self.device)
+            caption = caption.to(self.device)
+            eos_id = eos_id.to(self.device)
+            output_dict = self.model(img, caption, eos_id)
+            img_path = Path(self.val_dataset.images_dir) / img_name[0]
+            assert os.path.isfile(img_path)
+            output_dict["img_name"] = img_path
+            all_infos.append(output_dict)
+
+        save_path = Path(self.config["EMBED_DIR"]) / "embeddings.pkl"
+        save_pickle(all_infos, save_path)
+        self.logger.info(f"Saved embeddings in {save_path}")
+
+    def prepare_embeddings(self, all_infos):
+        embeds = []
+        for info in all_infos:
+            embeds.append(info["img_enc_common"])
+        embeds = torch.cat(embeds, 0)
+        return embeds
+
+    def get_prompt_embed(self, prompt):
         self.model.eval()
         prompt_tokenized, eos_id = self.val_dataset.process_text(prompt)
         prompt_tokenized = prompt_tokenized.unsqueeze(0)
-        all_cos_sim = []
-        all_img_names = []
+        prompt_tokenized = prompt_tokenized.to(self.device)
+        eos_id = eos_id.to(self.device)
+        img_size = self.config["MODEL"]["img_size"]
+        img = torch.randn(1, img_size[2], img_size[1], img_size[0]).to(self.device)
 
-        pbar = tqdm(enumerate(self.val_loader), total=len(self.val_loader))
-        for n_iter, (img, img_name, caption, _) in pbar:
-            if n_iter > 100:
-                break
-            img = img.to(self.device)
-            prompt_tokenized = prompt_tokenized.to(self.device)
-            eos_id = eos_id.to(self.device)
-            output_dict = self.model(img, prompt_tokenized, eos_id)
-            cos_sim = self.get_cos_sim(output_dict["img_enc_common"], output_dict["text_enc_common"])
-            self.logger.info(f"cos_sim {cos_sim}")
-            all_cos_sim.append(cos_sim)
-            img_path = os.path.join(self.val_dataset.images_dir, img_name[0])
-            assert os.path.isfile(img_path)
-            all_img_names.append(img_path)
+        output_dict = self.model(img, prompt_tokenized, eos_id)
+        text_enc_common = output_dict["text_enc_common"]
+        return text_enc_common
 
-        all_cos_sim = torch.tensor(all_cos_sim)
-        val, ind = torch.topk(all_cos_sim, 5)
-        selected_imgs = [all_img_names[i] for i in ind.tolist()]
-        selected_cos_sim = [all_cos_sim[i] for i in ind.tolist()]
+    def query_data_from_prompt(self, prompt, embed_path=None, query_numbers=5):
+        if embed_path is None:
+            self.compute_dataset_embeddings()
+            embed_path = Path(self.config["EMBED_DIR"]) / "embeddings.pkl"
+
+        all_infos = load_pickle(Path(embed_path))
+        embeds = self.prepare_embeddings(all_infos)
+        self.logger.info(f"Loaded embeddings: {embed_path} with size: {embeds.shape}")
+
+        text_enc_common = self.get_prompt_embed(prompt)
+        cos_sim = torch.mm(embeds, text_enc_common.permute(1, 0)).squeeze(-1)
+        val, ind = torch.topk(cos_sim, query_numbers)
+
+        selected_imgs = [all_infos[i]["img_name"] for i in ind.tolist()]
+        selected_cos_sim = [cos_sim[i] for i in ind.tolist()]
         plot_images_with_values(selected_imgs, selected_cos_sim, prompt=prompt, save_dir=self.config["IMG_OUT_DIR"])
-        # plot_images_with_values(all_img_names, all_cos_sim, prompt=prompt, save_dir=self.config["IMG_OUT_DIR"])

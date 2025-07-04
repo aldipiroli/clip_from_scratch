@@ -31,7 +31,7 @@ def make_artifacts_dirs(cfg, log_datetime=False):
     if log_datetime:
         now = datetime.now().strftime("%Y%m%d_%H%M%S")
     else:
-        now = ""
+        now = "logs/"
     cfg_artifacts = Path(cfg["ARTIFACTS_DIR"])
     cfg_artifacts = cfg_artifacts / now
     cfg["IMG_OUT_DIR"] = cfg_artifacts / "imgs"

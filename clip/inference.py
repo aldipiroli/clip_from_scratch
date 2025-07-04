@@ -8,7 +8,7 @@ from utils.trainer import Trainer
 
 def inference(args):
     config = load_config(args.config)
-    config = make_artifacts_dirs(config, log_datetime=True)
+    config = make_artifacts_dirs(config, log_datetime=False)
     logger = get_logger(config["LOG_DIR"])
     trainer = Trainer(config, logger)
 
@@ -20,7 +20,7 @@ def inference(args):
 
     trainer.set_dataset(train_dataset, val_dataset, data_config=config["DATA"], val_set_batch_size=1)
     trainer.load_checkpoint(args.ckpt)
-    trainer.query_data_from_prompt(args.prompt)
+    trainer.query_data_from_prompt(prompt=args.prompt, embed_path=args.embeds)
 
 
 if __name__ == "__main__":
@@ -28,5 +28,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default="config/gpt_config.yaml", help="Config path")
     parser.add_argument("--ckpt", type=str)
     parser.add_argument("--prompt", type=str)
+    parser.add_argument("--embeds", type=str)
     args = parser.parse_args()
     inference(args)
