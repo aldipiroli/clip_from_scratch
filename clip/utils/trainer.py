@@ -35,7 +35,7 @@ class Trainer(TrainerBase):
         self.reshuffle_dataloader()
 
         pbar = tqdm(enumerate(self.train_loader), total=len(self.train_loader))
-        for n_iter, (img, text, eos_id) in pbar:
+        for n_iter, (img, _, text, eos_id) in pbar:
             img = img.to(self.device)
             text = text.to(self.device)
             eos_id = eos_id.to(self.device)
