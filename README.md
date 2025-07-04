@@ -10,3 +10,17 @@ pip install -r requirements.txt && cd clip
 ``` 
 python train.py config/clip_config.yaml
 ```
+
+### Inference: text-to-image querying
+``` 
+python inference.py --config config/clip_config.yaml --ckpt path/to/ckpt --prompt "A picture of a dog ."
+```
+
+### Examples
+> Prompt and k-nearest scores (using cosine similarity between text and image embeddings)
+
+![Item 1](images/prompt_1.png)
+![Item 1](images/prompt_2.png)
+![Item 1](images/prompt_3.png)
+![Item 1](images/prompt_4.png)
+![Item 1](images/prompt_5.png)
