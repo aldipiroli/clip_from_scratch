@@ -21,7 +21,7 @@ OPTIM:
   lr: 0.0001
   accumulate_gradient: True
   accumulate_gradient_iters: 8
-  num_epochs: 10000
+  num_epochs: 100
   num_iterations_val: 50
   save_ckpt_every: 10
   eval_every: 5
