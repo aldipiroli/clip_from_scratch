@@ -11,13 +11,19 @@ pip install -r requirements.txt && cd clip
 python train.py config/clip_config.yaml
 ```
 
-### Inference: text-to-image querying
+### Inference: zero-shot classification
+> Note: Zero shot classification from a model trained on [Flickr8k](http://hockenmaier.cs.illinois.edu/8k-pictures.html) to data from [PascalVOC2012](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/).
 ``` 
-python inference.py --config config/clip_config.yaml --ckpt path/to/ckpt --prompt "A picture of a dog ."
+python run_zero_shot_cls.py --config config/clip_config.yaml --ckpt path/to/ckpt
 ```
 
-### Examples
-> Prompt and k-nearest scores (using cosine similarity between text and image embeddings)
+### Inference: text-to-image querying
+``` 
+python run_text_to_img_query.py --config config/clip_config.yaml --ckpt path/to/ckpt --prompt "A picture of a dog ."
+```
+
+#### Examples
+> Note: Prompt and top-k scores (using cosine similarity between text and image embeddings). Model trained on [Flickr8k](http://hockenmaier.cs.illinois.edu/8k-pictures.html) for 20 epochs. Image queries from the validation set.
 
 ![Item 1](images/prompt_1.png)
 ![Item 1](images/prompt_2.png)
