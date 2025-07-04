@@ -81,15 +81,16 @@ def load_pickle(path):
 
 def plot_images_with_values(image_paths, values, prompt, save_dir):
     num_images = len(image_paths)
-    fig, axes = plt.subplots(1, num_images, figsize=(5 * num_images, 5))
+    fig, axes = plt.subplots(1, num_images, figsize=(3 * num_images, 3))
 
     for ax, img_path, value in zip(axes, image_paths, values):
-        img = Image.open(img_path)
-        img = img.resize((224, 224))
+        img = Image.open(img_path).resize((224, 224))
         ax.imshow(img)
-        ax.set_title(f"Score: {value:.2f}", fontsize=18)
+        ax.set_title(f"Score: {value:.2f}", fontsize=10)
         ax.axis("off")
-    plt.suptitle(f"Prompt: '{prompt}'", fontsize=24)
-    plt.tight_layout()
-    plt.subplots_adjust(top=0.85)
-    plt.savefig(os.path.join(save_dir, "matches.png"))
+
+    plt.subplots_adjust(wspace=0)
+    fig.suptitle(f"Prompt: '{prompt}'", fontsize=14, y=1.02)
+    os.makedirs(save_dir, exist_ok=True)
+    plt.savefig(os.path.join(save_dir, "matches.png"), bbox_inches="tight", pad_inches=0.01, dpi=300)
+    plt.close(fig)
